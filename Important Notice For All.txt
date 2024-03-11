@@ -6,6 +6,13 @@ u all need to work on backend
 Ansh
 The dark knight need to work on documentation but also help backend team when needed
 
+Priyanshu and Nikhil will handle frontend and also review documentation
+
+it is complusory to add 2 features to these file after forking and publish
+those who unable to do will be debarred from group project..
+
+@ Test
+=======
 Priyanshu and Nikhil will work on frontend and co-ordination
 
 ----------------------------------------------------------------
@@ -67,3 +74,4 @@ possible queries and its solution could be avaialbel under FAQ. Previous tickets
 => Feature 2: Search functionality (queries + limit searches to certain periods of time / time frame)
 
 @priyanshuJain-32
+
