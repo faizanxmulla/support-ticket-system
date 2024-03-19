@@ -85,3 +85,14 @@ class Response(db.Model):
         "User.user_id"), nullable=False)
     response = db.Column(db.String, nullable=False)
     isAnswer = db.Column(db.Boolean, nullable=False, default=False)
+
+
+class Feedback(db.Model):
+    __tablename__ = "Feedback"
+    feedback_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey("Ticket.ticket_id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    content = db.Column(db.String(1024), nullable=False)
+
+    def __repr__(self):
+        return f"<Feedback {self.feedback_id}>"
