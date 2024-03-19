@@ -56,9 +56,9 @@ api.add_resource(
     Tag_api, "/api/tag/<string:tag_type>", "/api/tag/<string:tag_type>/<int:tag_id>"
 )
 api.add_resource(
-    Feedback_api,
-    "/api/feedback/tickets/<int:ticket_id>"
-)
+    Feedback_api, 
+    "/api/feedback", 
+    "/api/feedback/tickets/<int:ticket_id>")
 
 # Controllers
 

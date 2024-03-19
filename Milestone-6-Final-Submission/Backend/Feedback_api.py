@@ -6,6 +6,35 @@ from model import db, Feedback, Ticket, User
 
 class Feedback_api(Resource):
     @jwt_required()
+    def get(self, ticket_id=None, feedback_id=None):
+        if feedback_id:
+            feedback = Feedback.query.get(feedback_id)
+            if not feedback:
+                return {"error": "Feedback not found"}, 404
+            return {
+                "feedback_id": feedback.feedback_id,
+                "ticket_id": feedback.ticket_id,
+                "user_id": feedback.user_id,
+                "content": feedback.content,
+            }, 200
+        elif ticket_id:
+            feedbacks = Feedback.query.filter_by(ticket_id=ticket_id).all()
+        else:
+            feedbacks = Feedback.query.all()
+
+        feedback_list = [
+            {
+                "feedback_id": feedback.feedback_id,
+                "ticket_id": feedback.ticket_id,
+                "user_id": feedback.user_id,
+                "content": feedback.content,
+            }
+            for feedback in feedbacks
+        ]
+        return {"feedback": feedback_list}, 200
+
+
+    @jwt_required()
     def post(self, ticket_id=None):
         if not ticket_id:
             return {"error": "Ticket ID is required for posting feedback!"}, 400
