@@ -57,3 +57,41 @@ class Feedback_api(Resource):
         db.session.commit()
 
         return {"message": "Feedback submitted successfully !!"}, 201
+
+
+    @jwt_required()
+    def put(self, feedback_id):
+        username = get_jwt_identity()
+        feedback_data = request.get_json()
+        feedback = Feedback.query.get(feedback_id)
+
+        if not feedback:
+            return {"error": "Feedback not found"}, 404
+
+        user = User.query.filter_by(username=username).first()
+
+        if feedback.user_id != user.user_id:
+            return {"error": "Unauthorized"}, 403
+
+        feedback.content = feedback_data.get("content", feedback.content)
+        db.session.commit()
+
+        return {"message": "Feedback updated successfully !!"}, 200
+
+
+    @jwt_required()
+    def delete(self, feedback_id):
+        username = get_jwt_identity()
+        feedback = Feedback.query.get(feedback_id)
+
+        if not feedback:
+            return {"error": "Feedback not found"}, 404
+
+        user = User.query.filter_by(username=username).first()
+        if feedback.user_id != user.user_id:
+            return {"error": "Unauthorized"}, 403
+
+        db.session.delete(feedback)
+        db.session.commit()
+
+        return {"message": "Feedback deleted successfully"}, 200
