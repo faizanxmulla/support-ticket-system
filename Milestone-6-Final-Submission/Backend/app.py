@@ -3,7 +3,12 @@ import os
 import requests as rq
 from flask import Flask, request, render_template
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    get_jwt_identity,
+    jwt_required,
+)
 from flask_restful import Api
 from werkzeug.security import check_password_hash
 
@@ -15,16 +20,18 @@ from Response_api_for_TM import Responses_api
 from Role_manager_api import Role_api
 from Tag_manager_api import Tag_api
 from Ticket_manager_api import Ticket_api
+from Feedback_api import Feedback_api
 from model import Response, Secondary_Tag, Subject_Tag, Ticket, User, db
 from flask import Flask, request, jsonify
 
 # Configurations
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+os.getcwd() + \
-    '/DB_project.sqlite3'
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    "sqlite:///" + os.getcwd() + "/DB_project.sqlite3"
+)
 api = Api(app)
 
-app.config['SECRET_KEY'] = 'FMM-2'
+app.config["SECRET_KEY"] = "FMM-2"
 CORS(app)
 JWTManager(app)
 db.init_app(app)
@@ -32,19 +39,31 @@ app.app_context().push()
 db.create_all()
 
 # API URLS
-api.add_resource(Login_api, '/api/register', '/api/login/<string:email>')
-api.add_resource(Role_api, '/api/role', '/api/role/<int:user_id>')
-api.add_resource(Ticket_api, '/api/subject/ticket/<int:ticket_id>',
-                 '/api/subject/<string:subject_name>')
-api.add_resource(Responses_api, '/api/response', '/api/response/<int:ticket_id>',
-                 '/api/response/<int:ticket_id>/<int:response_id>')
-api.add_resource(Tag_api,
-                 '/api/tag/<string:tag_type>', '/api/tag/<string:tag_type>/<int:tag_id>')
+api.add_resource(Login_api, "/api/register", "/api/login/<string:email>")
+api.add_resource(Role_api, "/api/role", "/api/role/<int:user_id>")
+api.add_resource(
+    Ticket_api,
+    "/api/subject/ticket/<int:ticket_id>",
+    "/api/subject/<string:subject_name>",
+)
+api.add_resource(
+    Responses_api,
+    "/api/response",
+    "/api/response/<int:ticket_id>",
+    "/api/response/<int:ticket_id>/<int:response_id>",
+)
+api.add_resource(
+    Tag_api, "/api/tag/<string:tag_type>", "/api/tag/<string:tag_type>/<int:tag_id>"
+)
+api.add_resource(
+    Feedback_api,
+    "/api/feedback/tickets/<int:ticket_id>"
+)
 
 # Controllers
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     form = request.get_json()
     username = form.get("username")
@@ -55,83 +74,122 @@ def login():
     if not user:
         raise DataError(status_code=404)
     if check_password_hash(pwhash=user.password, password=password):
-        if user.role == 'staff':
+        if user.role == "staff":
             staff = Staff.query.filter_by(user_id=user_id).first()
             if staff.status == False:
-                raise LogicError(status_code=400, error_code="USER006",
-                                 error_msg="The staff is unapproved. Please wait for approval")
+                raise LogicError(
+                    status_code=400,
+                    error_code="USER006",
+                    error_msg="The staff is unapproved. Please wait for approval",
+                )
             else:
                 expire_time = datetime.timedelta(days=1)
                 access_token = create_access_token(
-                    identity=username, expires_delta=expire_time)
-                return {'access_token': access_token, 'role': user.role, "user_id": user.user_id, "subject_name": Subject_Tag.query.filter_by(subject_id=staff.subject_id).first().subject_name}, 200
+                    identity=username, expires_delta=expire_time
+                )
+                return {
+                    "access_token": access_token,
+                    "role": user.role,
+                    "user_id": user.user_id,
+                    "subject_name": Subject_Tag.query.filter_by(
+                        subject_id=staff.subject_id
+                    )
+                    .first()
+                    .subject_name,
+                }, 200
 
         expire_time = datetime.timedelta(days=1)
-        access_token = create_access_token(
-            identity=username, expires_delta=expire_time)
-        return {'access_token': access_token, 'role': user.role, "user_id": user.user_id}, 200
+        access_token = create_access_token(identity=username, expires_delta=expire_time)
+        return {
+            "access_token": access_token,
+            "role": user.role,
+            "user_id": user.user_id,
+        }, 200
     else:
-        raise LogicError(status_code=400, error_code="USER005",
-                         error_msg="Either username or password is incorrect")
+        raise LogicError(
+            status_code=400,
+            error_code="USER005",
+            error_msg="Either username or password is incorrect",
+        )
 
 
-@app.route('/notify/<string:role>', methods=['POST'])
+@app.route("/notify/<string:role>", methods=["POST"])
 @jwt_required()
 def notifyMail(role):
     form = request.get_json()
-    ticket_id = form.get('ticket_id')
+    ticket_id = form.get("ticket_id")
     if ticket_id is None:
         # if ticket-id is missing raise error
         raise DataError(status_code=400)
 
-    if role == 'student':
+    if role == "student":
         # Sending specific notification to students abt their ticket status
-        token = request.headers['Authorization']
-        ticket_data = rq.get(request.url_root + 'api/response/' +
-                             ticket_id, headers={'Authorization': token}).json()
-        author = User.query.filter_by(
-            user_id=ticket_data.get('user_id')).first()
+        token = request.headers["Authorization"]
+        ticket_data = rq.get(
+            request.url_root + "api/response/" + ticket_id,
+            headers={"Authorization": token},
+        ).json()
+        author = User.query.filter_by(user_id=ticket_data.get("user_id")).first()
         if get_jwt_identity() != author.username:
             # Checking if the ticket's author posted the response then no notfication
-            send_email(to=author.email, subject="New response is posted in your ticket",
-                       msg=render_template('mail_body_student.html', username=author.username,
-                                           response=ticket_data.get('response_list')[-1]))
+            send_email(
+                to=author.email,
+                subject="New response is posted in your ticket",
+                msg=render_template(
+                    "mail_body_student.html",
+                    username=author.username,
+                    response=ticket_data.get("response_list")[-1],
+                ),
+            )
     else:
         # Sending notification to respective staff that new ticket has been created
-        subject_name = form.get('subject_name')
-        token = request.headers['Authorization']
-        staff_list = rq.get(request.url_root + 'api/role?status=1',
-                            headers={'Authorization': token}).json()
+        subject_name = form.get("subject_name")
+        token = request.headers["Authorization"]
+        staff_list = rq.get(
+            request.url_root + "api/role?status=1", headers={"Authorization": token}
+        ).json()
 
-        staff_list = filter(lambda x: x.get('subject_name') == subject_name,
-                            staff_list)
-        ticket_data = rq.get(request.url_root + 'api/response/' +
-                             str(ticket_id), headers={'Authorization': token}).json()
+        staff_list = filter(lambda x: x.get("subject_name") == subject_name, staff_list)
+        ticket_data = rq.get(
+            request.url_root + "api/response/" + str(ticket_id),
+            headers={"Authorization": token},
+        ).json()
         for staff in staff_list:
             # print(staff)
-            send_email(to=staff.get('email'), subject="New Ticket is created",
-                       msg=render_template('mail_body_staff.html', username=staff.get('username'), ticket=ticket_data))
+            send_email(
+                to=staff.get("email"),
+                subject="New Ticket is created",
+                msg=render_template(
+                    "mail_body_staff.html",
+                    username=staff.get("username"),
+                    ticket=ticket_data,
+                ),
+            )
 
-    return 'Success', 200
-@app.route('/api/ticket/<int:ticket_id>/like', methods=['POST'])
+    return "Success", 200
+
+
+@app.route("/api/ticket/<int:ticket_id>/like", methods=["POST"])
 def increase_ticket_likes(ticket_id):
     ticket = Ticket.query.get(ticket_id)
     if not ticket:
-        return jsonify({'message': 'Ticket not found'}), 404
+        return jsonify({"message": "Ticket not found"}), 404
 
     # Convert Ticket_likes to int before incrementing
     current_likes = int(ticket.Ticket_likes) if ticket.Ticket_likes else 0
     ticket.Ticket_likes = current_likes + 1
-    
+
     try:
         db.session.commit()
-        return jsonify({'message': 'Likes increased', 'likes': ticket.Ticket_likes}), 200
+        return (
+            jsonify({"message": "Likes increased", "likes": ticket.Ticket_likes}),
+            200,
+        )
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error increasing likes for ticket {ticket_id}: {e}")
-        return jsonify({'message': 'Error updating ticket likes'}), 500
-
+        return jsonify({"message": "Error updating ticket likes"}), 500
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port='5500')
+    app.run(debug=True, host="0.0.0.0", port="5500")
